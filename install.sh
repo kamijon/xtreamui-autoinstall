@@ -1,49 +1,78 @@
 #!/bin/bash
 
-# Must be run as root
+# XTREAM UI AUTO INSTALL SCRIPT - For Ubuntu 22.04
+# Author: kamijon
+# Last Updated: 2025-04
+
+# -------------------------------
+# Step 0: Check for root access
+# -------------------------------
 if [ "$EUID" -ne 0 ]; then
-  echo "Please run this script as root."
+  echo "❌ Please run this script as root."
   exit 1
 fi
 
-echo "==============================="
-echo "  Xtream UI Auto Installer     "
-echo "==============================="
-
-echo "[1/7] Updating system..."
+# -------------------------------
+# Step 1: Update and upgrade system
+# -------------------------------
+echo "🔄 Updating system..."
 apt update && apt upgrade -y
 
-echo "[2/7] Installing required packages..."
-apt install -y sudo curl wget unzip zip net-tools cron nginx \
+# -------------------------------
+# Step 2: Install dependencies
+# -------------------------------
+echo "📦 Installing required packages..."
+apt install -y sudo curl wget unzip zip net-tools cron ufw nginx \
   php php-cli php-mysql php-curl php-mbstring php-xml php-bcmath \
   software-properties-common ffmpeg mysql-server
 
-echo "[3/7] Securing MySQL installation..."
-mysql_secure_installation <<EOF
+# -------------------------------
+# Step 3: Configure firewall
+# -------------------------------
+echo "🛡️  Configuring UFW firewall..."
+ufw allow OpenSSH
+ufw allow 25461/tcp
+ufw allow 25500/tcp
+ufw allow 8000:8100/tcp
+ufw allow 80/tcp
+ufw allow 443/tcp
+ufw --force enable
 
-y
-iptvadmin
-iptvadmin
-y
-y
-y
-y
-EOF
+# -------------------------------
+# Step 4: Secure MySQL
+# -------------------------------
+echo "🔐 Securing MySQL..."
+mysql -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY 'xtreampass'; FLUSH PRIVILEGES;"
 
-echo "[4/7] Creating installation directory..."
-mkdir -p /opt/xtreamui
-cd /opt/xtreamui
+# Create database and user for Xtream UI
+mysql -uroot -pxtreampass -e "CREATE DATABASE xtreamui;"
+mysql -uroot -pxtreampass -e "CREATE USER 'xtream'@'localhost' IDENTIFIED BY 'xtreampass';"
+mysql -uroot -pxtreampass -e "GRANT ALL PRIVILEGES ON xtreamui.* TO 'xtream'@'localhost';"
+mysql -uroot -pxtreampass -e "FLUSH PRIVILEGES;"
 
-echo "[5/7] Downloading Xtream UI installer..."
-wget -O xtreamui-install.zip https://github.com/hikbselmi/xtreamui_autoinstall/archive/refs/heads/master.zip
+# -------------------------------
+# Step 5: Download Xtream UI
+# -------------------------------
+echo "📥 Downloading Xtream UI installer..."
+mkdir -p /opt/xtreamui && cd /opt/xtreamui
+wget -O xtreamui.zip https://github.com/hikbselmi/xtreamui_autoinstall/archive/refs/heads/master.zip
 
-echo "[6/7] Extracting files..."
-unzip xtreamui-install.zip
+echo "📂 Extracting..."
+unzip xtreamui.zip
 cd xtreamui_autoinstall-master
 
-echo "[7/7] Running Xtream UI installer..."
+# -------------------------------
+# Step 6: Run Xtream UI installer
+# -------------------------------
+echo "🚀 Running Xtream UI installer..."
 bash install.sh
 
-echo "✅ Xtream UI installation finished!"
-echo "➡ You can now access your panel at:"
-echo "   http://your-server-ip:25500"
+# -------------------------------
+# Step 7: Finish
+# -------------------------------
+clear
+echo "✅ Xtream UI installation completed successfully!"
+echo "🌐 Visit your panel at: http://your-server-ip:25500"
+echo "🔑 MySQL root password: xtreampass"
+echo "🔑 Xtream UI DB: xtreamui | User: xtream | Pass: xtreampass"
+echo "🔥 Firewall configured and active (UFW)"
